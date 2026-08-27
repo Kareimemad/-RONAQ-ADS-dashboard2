@@ -1,0 +1,10 @@
+{
+  "accounts": [
+    { "key": "ronaq",      "label": "RONAQ",      "ad_account_id": "act_2091139328138410" },
+    { "key": "zittz",      "label": "ZITTZ",      "ad_account_id": "act_XXXXXXXXXXXX" },
+    { "key": "rivana",     "label": "RIVANA",     "ad_account_id": "act_XXXXXXXXXXXX" },
+    { "key": "daino_kids", "label": "Daino Kids", "ad_account_id": "act_XXXXXXXXXXXX" },
+    { "key": "dew",        "label": "Dew",        "ad_account_id": "act_XXXXXXXXXXXX" },
+    { "key": "bamm",       "label": "BAMM Egypt", "ad_account_id": "act_XXXXXXXXXXXX" }
+  ]
+}

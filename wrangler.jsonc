@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ronaq-ads-dashboard",
+  "compatibility_date": "2026-08-27",
+  "assets": {
+    "directory": "./docs"
+  }
+}

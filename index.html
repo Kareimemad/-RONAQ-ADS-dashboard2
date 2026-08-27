@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>داشبورد الحسابات الإعلانية</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#e8e9ec; --muted:#9aa0ac; --green:#3ddc97; --red:#ff6b6b;
+    --orange:#ffb454; --blue:#4da6ff; --purple:#b18aff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Segoe UI', Tahoma, Arial, sans-serif; background:var(--bg); color:var(--text); padding:24px;}
+  h1{font-size:22px; margin:0 0 4px 0;}
+  .subtitle{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px;}
+  .tab{
+    padding:8px 16px; border-radius:999px; background:var(--panel); border:1px solid var(--border);
+    color:var(--muted); cursor:pointer; font-size:13px; user-select:none;
+  }
+  .tab.active{background:var(--blue); color:#0f1115; font-weight:700; border-color:var(--blue);}
+  .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:24px;}
+  .kpi{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px;}
+  .kpi .label{font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .kpi .value{font-size:24px; font-weight:700;}
+  .green{color:var(--green);} .orange{color:var(--orange);} .blue{color:var(--blue);} .purple{color:var(--purple);}
+  .section-title{font-size:16px; font-weight:600; margin:24px 0 12px 0;}
+  .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;}
+  @media (max-width:800px){ .chart-grid{grid-template-columns:1fr;} }
+  .chart-card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px;}
+  .chart-card .title{font-size:13px; color:var(--muted); margin-bottom:10px;}
+  .chart-wrap{position:relative; height:220px;}
+  table{width:100%; border-collapse:collapse; background:var(--panel); border-radius:12px; overflow:hidden; font-size:13px;}
+  th, td{padding:10px 12px; text-align:center; border-bottom:1px solid var(--border);}
+  th{background:var(--panel2); color:var(--muted); font-weight:600; font-size:11px;}
+  tbody tr:hover{background:var(--panel2);}
+  .pos{color:var(--green);} .neg{color:var(--red);} .neutral{color:var(--muted);}
+  .updated{color:var(--muted); font-size:12px; margin-top:16px;}
+  .empty{color:var(--muted); padding:40px; text-align:center;}
+</style>
+</head>
+<body>
+
+<h1>📊 داشبورد الحسابات الإعلانية</h1>
+<div class="subtitle">بيانات يومية من Meta Ads Manager — بتتحدث أوتوماتيك كل يوم</div>
+
+<div class="tabs" id="tabs"></div>
+<div id="content"><div class="empty">جاري تحميل البيانات...</div></div>
+
+<script>
+const muted = '#9aa0ac';
+const grid = '#2a2f3a';
+let charts = [];
+
+function destroyCharts(){ charts.forEach(c => c.destroy()); charts = []; }
+
+function fmt(n, d=2){ return Number(n).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+
+function renderAccount(data){
+  destroyCharts();
+  const days = data.days.slice(-30); // آخر 30 يوم بحد أقصى
+  if(!days.length){
+    document.getElementById('content').innerHTML = '<div class="empty">لسه مفيش بيانات لهذا الحساب</div>';
+    return;
+  }
+
+  const totalSpend = days.reduce((s,d)=>s+d.spend,0);
+  const totalOrders = days.reduce((s,d)=>s+d.orders,0);
+  const totalValue = days.reduce((s,d)=>s+d.value,0);
+  const blendedRoas = totalSpend ? totalValue/totalSpend : 0;
+  const blendedCpp = totalOrders ? totalSpend/totalOrders : 0;
+
+  const kpis = [
+    {label:`إجمالي الإنفاق (${days.length} يوم)`, value: fmt(totalSpend,0) + ' ج.م', cls:'blue'},
+    {label:'إجمالي الأوردرات', value: totalOrders, cls:'green'},
+    {label:'ROAS بليندد', value: blendedRoas.toFixed(2) + 'x', cls:'green'},
+    {label:'متوسط CPP', value: fmt(blendedCpp,1) + ' ج.م', cls:'orange'},
+  ];
+
+  document.getElementById('content').innerHTML = `
+    <div class="kpi-grid">${kpis.map(k => `
+      <div class="kpi">
+        <div class="label">${k.label}</div>
+        <div class="value ${k.cls}">${k.value}</div>
+      </div>`).join('')}
+    </div>
+
+    <div class="section-title">الاتجاه اليومي</div>
+    <div class="chart-grid">
+      <div class="chart-card"><div class="title">الإنفاق اليومي (جنيه)</div><div class="chart-wrap"><canvas id="c1"></canvas></div></div>
+      <div class="chart-card"><div class="title">عدد الأوردرات اليومي</div><div class="chart-wrap"><canvas id="c2"></canvas></div></div>
+      <div class="chart-card"><div class="title">ROAS اليومي</div><div class="chart-wrap"><canvas id="c3"></canvas></div></div>
+      <div class="chart-card"><div class="title">تكلفة الأوردر CPP (جنيه)</div><div class="chart-wrap"><canvas id="c4"></canvas></div></div>
+    </div>
+
+    <div class="section-title">الجدول التفصيلي</div>
+    <table>
+      <thead><tr><th>التاريخ</th><th>الإنفاق</th><th>الأوردرات</th><th>القيمة</th><th>ROAS</th><th>CPP</th></tr></thead>
+      <tbody>
+        ${days.slice().reverse().map(d => `
+          <tr>
+            <td>${d.date}</td>
+            <td>${fmt(d.spend)}</td>
+            <td>${d.orders}</td>
+            <td>${fmt(d.value)}</td>
+            <td class="${d.roas>=10?'pos':(d.roas<8?'neg':'neutral')}">${d.roas.toFixed(2)}x</td>
+            <td class="${d.cpp<=80 && d.cpp>0 ?'pos':(d.cpp>95?'neg':'neutral')}">${d.cpp.toFixed(1)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="updated">آخر تحديث: ${data.updated_at || '-'}</div>
+  `;
+
+  const labels = days.map(d => d.date.slice(5)); // MM-DD
+
+  function baseOptions(f){
+    return { responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>f(c.parsed.y)}}},
+      scales:{ y:{ticks:{color:muted}, grid:{color:grid}}, x:{ticks:{color:muted}, grid:{display:false}} } };
+  }
+
+  charts.push(new Chart(document.getElementById('c1'), {
+    type:'bar', data:{labels, datasets:[{data:days.map(d=>d.spend), backgroundColor:'#4da6ff'}]},
+    options: baseOptions(v=>v.toFixed(0)+' ج.م')
+  }));
+  charts.push(new Chart(document.getElementById('c2'), {
+    type:'bar', data:{labels, datasets:[{data:days.map(d=>d.orders), backgroundColor:'#3ddc97'}]},
+    options: baseOptions(v=>v+' أوردر')
+  }));
+  charts.push(new Chart(document.getElementById('c3'), {
+    type:'line', data:{labels, datasets:[{data:days.map(d=>d.roas), borderColor:'#b18aff', backgroundColor:'rgba(177,138,255,0.15)', fill:true, tension:0.3, borderWidth:2, pointRadius:3}]},
+    options: baseOptions(v=>v.toFixed(2)+'x')
+  }));
+  charts.push(new Chart(document.getElementById('c4'), {
+    type:'line', data:{labels, datasets:[{data:days.map(d=>d.cpp), borderColor:'#ffb454', backgroundColor:'rgba(255,180,84,0.15)', fill:true, tension:0.3, borderWidth:2, pointRadius:3}]},
+    options: baseOptions(v=>v.toFixed(1)+' ج.م')
+  }));
+}
+
+async function loadAccount(key){
+  document.getElementById('content').innerHTML = '<div class="empty">جاري تحميل البيانات...</div>';
+  try{
+    const res = await fetch(`data/${key}.json?t=${Date.now()}`);
+    const data = await res.json();
+    renderAccount(data);
+  }catch(e){
+    document.getElementById('content').innerHTML = '<div class="empty">تعذر تحميل بيانات هذا الحساب</div>';
+  }
+}
+
+async function init(){
+  try{
+    const res = await fetch(`data/index.json?t=${Date.now()}`);
+    const accounts = await res.json();
+    if(!accounts.length){
+      document.getElementById('tabs').innerHTML = '';
+      document.getElementById('content').innerHTML = '<div class="empty">لسه مفيش حسابات متصلة. حدّث config/accounts.json وشغّل الـ workflow.</div>';
+      return;
+    }
+    document.getElementById('tabs').innerHTML = accounts.map((a,i) =>
+      `<div class="tab ${i===0?'active':''}" data-key="${a.key}">${a.label}</div>`
+    ).join('');
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        loadAccount(tab.dataset.key);
+      });
+    });
+    loadAccount(accounts[0].key);
+  }catch(e){
+    document.getElementById('content').innerHTML = '<div class="empty">لسه الـ workflow ما شغّلش أول مرة، أو data/index.json مش موجود</div>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

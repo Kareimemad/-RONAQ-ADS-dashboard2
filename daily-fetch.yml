@@ -1,0 +1,38 @@
+name: Daily Meta Ads Fetch
+
+on:
+  schedule:
+    # 4:00 صباحًا UTC = 6:00 أو 7:00 صباحًا بتوقيت القاهرة (حسب التوقيت الصيفي)
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}   # يسمح بتشغيله يدويًا من تبويب Actions وقت ما تحب
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch Meta Ads data
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+        run: python scripts/fetch_meta_ads.py
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "meta-ads-bot"
+          git config user.email "actions@github.com"
+          git add docs/data
+          git diff --quiet --cached || git commit -m "تحديث بيانات يومي - $(date -u +'%Y-%m-%d')"
+          git push

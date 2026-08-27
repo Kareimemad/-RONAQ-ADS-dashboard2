@@ -15,6 +15,16 @@
   body{margin:0; font-family:'Segoe UI', Tahoma, Arial, sans-serif; background:var(--bg); color:var(--text); padding:24px;}
   h1{font-size:22px; margin:0 0 4px 0;}
   .subtitle{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  .date-filter{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:18px;}
+  .date-label{font-size:12px; color:var(--muted); font-weight:600;}
+  .date-input{height:38px; padding:0 10px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; font-size:13px; outline:none;}
+  .date-input:focus{border-color:var(--blue);}
+  .date-sep{color:var(--muted); font-size:13px;}
+  .date-btn{height:38px; padding:0 14px; border:0; border-radius:8px; background:var(--blue); color:#0f1115; font-weight:700; cursor:pointer; font-size:13px;}
+  .date-btn:hover{filter:brightness(1.08);}
+  .preset-btn{height:32px; padding:0 10px; border-radius:7px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:12px;}
+  .preset-btn:hover{background:var(--panel2); color:var(--text);}
+  .date-error{width:100%; color:var(--red); font-size:12px; display:none;}
   .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px;}
   .tab{
     padding:8px 16px; border-radius:999px; background:var(--panel); border:1px solid var(--border);
@@ -46,6 +56,18 @@
 <h1>📊 داشبورد الحسابات الإعلانية</h1>
 <div class="subtitle">بيانات يومية من Meta Ads Manager — بتتحدث أوتوماتيك كل يوم</div>
 
+<div class="date-filter" id="dateFilter" style="display:none;">
+  <span class="date-label">الفترة:</span>
+  <input class="date-input" id="dateFrom" type="date" aria-label="من تاريخ">
+  <span class="date-sep">إلى</span>
+  <input class="date-input" id="dateTo" type="date" aria-label="إلى تاريخ">
+  <button class="date-btn" id="applyDate">تطبيق</button>
+  <button class="preset-btn" data-preset="today">اليوم</button>
+  <button class="preset-btn" data-preset="yesterday">أمس</button>
+  <button class="preset-btn" data-preset="7">آخر 7 أيام</button>
+  <button class="preset-btn" data-preset="30">آخر 30 يوم</button>
+  <div class="date-error" id="dateError">اختار تاريخ بداية أصغر من أو يساوي تاريخ النهاية.</div>
+</div>
 <div class="tabs" id="tabs"></div>
 <div id="content"><div class="empty">جاري تحميل البيانات...</div></div>
 
@@ -53,6 +75,9 @@
 const muted = '#9aa0ac';
 const grid = '#2a2f3a';
 let charts = [];
+let currentData = null;
+let selectedFrom = null;
+let selectedTo = null;
 
 function destroyCharts(){ charts.forEach(c => c.destroy()); charts = []; }
 
@@ -60,9 +85,13 @@ function fmt(n, d=2){ return Number(n).toLocaleString('en-US', {minimumFractionD
 
 function renderAccount(data){
   destroyCharts();
-  const days = data.days.slice(-30); // آخر 30 يوم بحد أقصى
+  currentData = data;
+  const allDays = Array.isArray(data.days) ? data.days : [];
+  const days = (selectedFrom && selectedTo)
+    ? allDays.filter(d => d.date >= selectedFrom && d.date <= selectedTo)
+    : allDays.slice(-30); // افتراضيًا آخر 30 يوم
   if(!days.length){
-    document.getElementById('content').innerHTML = '<div class="empty">لسه مفيش بيانات لهذا الحساب</div>';
+    document.getElementById('content').innerHTML = '<div class="empty">مفيش بيانات داخل الفترة المحددة</div>';
     return;
   }
 
@@ -139,11 +168,71 @@ function renderAccount(data){
   }));
 }
 
+function setupDateFilter(data){
+  const filter = document.getElementById('dateFilter');
+  const from = document.getElementById('dateFrom');
+  const to = document.getElementById('dateTo');
+  const error = document.getElementById('dateError');
+  const allDays = Array.isArray(data.days) ? data.days : [];
+  if(!allDays.length){ filter.style.display = 'none'; return; }
+
+  const minDate = allDays[0].date;
+  const maxDate = allDays[allDays.length - 1].date;
+  from.min = minDate; from.max = maxDate;
+  to.min = minDate; to.max = maxDate;
+
+  if(!selectedFrom || !selectedTo){
+    const defaultDays = allDays.slice(-30);
+    selectedFrom = defaultDays[0].date;
+    selectedTo = defaultDays[defaultDays.length - 1].date;
+  }
+  from.value = selectedFrom;
+  to.value = selectedTo;
+  filter.style.display = 'flex';
+  error.style.display = 'none';
+
+  document.getElementById('applyDate').onclick = () => {
+    if(!from.value || !to.value || from.value > to.value){
+      error.style.display = 'block';
+      return;
+    }
+    selectedFrom = from.value;
+    selectedTo = to.value;
+    error.style.display = 'none';
+    renderAccount(currentData);
+  };
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.onclick = () => {
+      const preset = btn.dataset.preset;
+      let end = maxDate;
+      let start = end;
+      if(preset === 'today') start = end;
+      else if(preset === 'yesterday') {
+        const d = new Date(end + 'T00:00:00');
+        d.setDate(d.getDate() - 1);
+        start = end = d.toISOString().slice(0,10);
+      } else {
+        const count = Number(preset);
+        const idx = Math.max(0, allDays.length - count);
+        start = allDays[idx]?.date || minDate;
+      }
+      selectedFrom = start < minDate ? minDate : start;
+      selectedTo = end > maxDate ? maxDate : end;
+      from.value = selectedFrom;
+      to.value = selectedTo;
+      error.style.display = 'none';
+      renderAccount(currentData);
+    };
+  });
+}
+
 async function loadAccount(key){
   document.getElementById('content').innerHTML = '<div class="empty">جاري تحميل البيانات...</div>';
   try{
     const res = await fetch(`data/${key}.json?t=${Date.now()}`);
     const data = await res.json();
+    setupDateFilter(data);
     renderAccount(data);
   }catch(e){
     document.getElementById('content').innerHTML = '<div class="empty">تعذر تحميل بيانات هذا الحساب</div>';
@@ -166,6 +255,8 @@ async function init(){
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
         tab.classList.add('active');
+        selectedFrom = null;
+        selectedTo = null;
         loadAccount(tab.dataset.key);
       });
     });

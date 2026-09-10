@@ -1,6 +1,6 @@
 {
   "label": "RIVANA",
-  "updated_at": "2026-09-10 08:44:05 UTC",
+  "updated_at": "2026-09-10 13:22:19 UTC",
   "days": [
     {
       "date": "2026-07-29",
@@ -466,25 +466,25 @@
     },
     {
       "date": "2026-09-09",
-      "spend": 2434.18,
+      "spend": 2439.76,
       "orders": 31,
       "value": 25721.0,
-      "reach": 45679,
-      "impressions": 61270,
-      "roas": 10.567,
-      "cpp": 78.52,
-      "cpm": 53.29
+      "reach": 45787,
+      "impressions": 61436,
+      "roas": 10.542,
+      "cpp": 78.7,
+      "cpm": 53.28
     },
     {
       "date": "2026-09-10",
-      "spend": 1238.51,
-      "orders": 12,
-      "value": 9364.0,
-      "reach": 23603,
-      "impressions": 28319,
-      "roas": 7.561,
-      "cpp": 103.21,
-      "cpm": 52.47
+      "spend": 1930.11,
+      "orders": 20,
+      "value": 18673.0,
+      "reach": 33268,
+      "impressions": 42125,
+      "roas": 9.675,
+      "cpp": 96.51,
+      "cpm": 58.02
     }
   ]
 }

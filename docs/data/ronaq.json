@@ -1,6 +1,6 @@
 {
   "label": "RONAQ",
-  "updated_at": "2026-10-26 21:26:48 UTC",
+  "updated_at": "2026-10-27 01:15:18 UTC",
   "days": [
     {
       "date": "2026-07-28",
@@ -994,14 +994,25 @@
     },
     {
       "date": "2026-10-26",
-      "spend": 1579.74,
+      "spend": 1609.53,
       "orders": 19,
       "value": 16073.0,
-      "reach": 15990,
-      "impressions": 23219,
-      "roas": 10.174,
-      "cpp": 83.14,
-      "cpm": 98.8
+      "reach": 16256,
+      "impressions": 23652,
+      "roas": 9.986,
+      "cpp": 84.71,
+      "cpm": 99.01
+    },
+    {
+      "date": "2026-10-27",
+      "spend": 343.27,
+      "orders": 2,
+      "value": 1564.0,
+      "reach": 5203,
+      "impressions": 5913,
+      "roas": 4.556,
+      "cpp": 171.63,
+      "cpm": 65.98
     }
   ]
 }
